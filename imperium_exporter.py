@@ -4,7 +4,7 @@ bl_info = {
     "name": "Imperium exporter",
     "description": "An add-on for rendering Imperium textures",
     "author": "Javier Rojo Muñoz",
-    "version": (0, 1),
+    "version": (0, 2),
     "location": "PROPERTIES > RENDER > IMPERIUM RENDERER",
     "warning": "Under development",
     "wiki_url": "https://github.com/JavierRojo/Imperium_exporter",
@@ -24,10 +24,21 @@ class ImperiumRenderer(bpy.types.Operator):
 
     def execute(self, context):
         scene = context.scene
-        scene.render.filepath = scene.ImperiumProperties.result_path + \
-            "frame"+str(scene.ImperiumProperties.frame_to_render)
-        scene.frame_set(scene.ImperiumProperties.frame_to_render)
-        bpy.ops.render.render(write_still=True, use_viewport=False)
+        n_frames = scene.ImperiumProperties.number_of_frames
+        start = scene.frame_start
+        end = scene.frame_end
+
+        stepvalue = round((end-start)/n_frames)
+        frames = range(start, end, stepvalue)
+        if(len(frames) < 1):
+            frames = [start]
+        count = 0
+        for f in frames:
+            scene.frame_set(f)
+            scene.render.filepath = scene.ImperiumProperties.result_path + \
+                str(count)
+            bpy.ops.render.render(write_still=True, use_viewport=False)
+            count += 1
         return {'FINISHED'}
 
 
@@ -36,9 +47,11 @@ class ImperiumRenderer(bpy.types.Operator):
 
 class ImperiumProperties(bpy.types.PropertyGroup):
     """Properties for this addon"""
-    frame_to_render: bpy.props.IntProperty(
+    number_of_frames: bpy.props.IntProperty(
         name="Frame to render",
-        default=1
+        default=1,
+        min=1,
+        max=50
     )
     result_path: bpy.props.StringProperty(
         name="Output Path",
@@ -61,25 +74,20 @@ class ImperiumPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        ### --- FIRST ITERATION --- ###
-        layout.label(text="T1-01", icon='SCRIPT')
+        ### --- SECOND ITERATION --- ###
+        layout.label(text="T1-02", icon='SCRIPT')
 
         # --- FRAME PROPERTIES --- #
         row = layout.row()
-        # layout.label(text="Camera properties:")
-        # col = layout.column(align=True)
-        # col.prop(scene, "frame_start", text="start:")
-        # col.prop(scene, "frame_end", text="end:")
-        # row = layout.row()
-        # @TODO:evenly spaced frames given number of frames
-        #       layout.label(text="Number of frames: @TODO")
-
-        # @TODO: delete this line and substitute it with the above
-        # layout.label(text="Frame to render:")
-
-        row.prop(scene.ImperiumProperties, "frame_to_render", text="frame")
+        col = layout.column(align=True)
+        col.prop(scene, "frame_start", text="start:")
+        col.prop(scene, "frame_end", text="end:")
+        row = layout.row()
+        row.prop(scene.ImperiumProperties,
+                 "number_of_frames", text="number of frames")
 
         # --- PATH --- #
+
         row = layout.row()
         row.prop(scene.ImperiumProperties, "result_path", text="path")
 
