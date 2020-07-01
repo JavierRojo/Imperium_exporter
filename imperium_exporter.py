@@ -70,15 +70,24 @@ class ImperiumRenderer(bpy.types.Operator):
         frames = range(start, end, stepvalue)
         if(len(frames) < 1):
             frames = [start]
-        count = 0
+        count = 1
+        original_rot = target.rotation_euler.copy()
+        angle_step = math.pi*0.25
+        bpy.context.scene.render.film_transparent = True
+
         for f in frames:
             scene.frame_set(f)
-            scene.render.filepath = scene.ImperiumProperties.result_path + \
-                str(count)
-            try:
-                bpy.ops.render.render(write_still=True, use_viewport=False)
-            except:
-                pass
+            for deg in range(8):
+                target.rotation_euler[2] = -(deg)*angle_step
+                print(deg)
+                scene.render.filepath = scene.ImperiumProperties.result_path + \
+                    str(deg) + "_"+str(count)
+                try:
+                    bpy.ops.render.render(write_still=True, use_viewport=False)
+                except:
+                    self.report({'WARNING'}, "Could not render "+scene.render.filepath)
+                    pass
+            target.rotation_euler = original_rot.copy()
             count += 1
             
         return {'FINISHED'}
@@ -172,12 +181,7 @@ class ImperiumPanel(bpy.types.Panel):
         col.prop(scene, "frame_start", text="start:")
         col.prop(scene, "frame_end", text="end:")
         row = layout.row()
-        row.prop(scene.ImperiumProperties,"width_frame", text="width:")
-        
-        #col = layout.column(align=True)
-        #col.prop(scene.render, "resolution_x", text="resX")
-        #col.prop(scene.render, "resolution_y", text="resY")
-        
+        row.prop(scene.ImperiumProperties,"width_frame", text="width:")        
         row = layout.row()
         row.prop(scene.ImperiumProperties,
                  "number_of_frames", text="number of frames")
@@ -214,8 +218,6 @@ class ImperiumPanel(bpy.types.Panel):
 
 
 ### --- REGISTRATION AND UNREGISTRATION OF CLASSES --- ###
-
-
 def register():
     bpy.utils.register_class(ImperiumRenderer)
     bpy.utils.register_class(ImperiumDefaultCamera)
@@ -225,8 +227,6 @@ def register():
     bpy.types.Scene.ImperiumProperties = bpy.props.PointerProperty(
         type=ImperiumProperties)
         
-
-
 def unregister():
     bpy.utils.unregister_class(ImperiumRenderer)
     bpy.utils.unregister_class(ImperiumDefaultCamera)
