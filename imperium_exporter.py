@@ -1,4 +1,5 @@
 import bpy
+import math
 
 bl_info = {
     "name": "Imperium exporter",
@@ -22,13 +23,17 @@ class ImperiumDefaultCamera(bpy.types.Operator):
     
     def execute(self, context):
         scene = context.scene
+        #angle = math.atan(1/(math.sqrt(2))) # 0.615 rad ~= 35.264º
         bpy.ops.object.camera_add(
             enter_editmode=False,
             align='WORLD',
-            location=(0, 0, 0),
-            rotation=(0, 0, 1)
+            location=(-1, -4, 3),
+            rotation=(math.pi*2.5/6, 0, 0)
         )
-        scene.camera = bpy.data.objects[bpy.context.active_object.name]
+        #theory for isometric angle:
+        cam = bpy.data.objects[bpy.context.active_object.name]
+        cam.data.type = 'ORTHO'
+        scene.camera = cam
         # @TODO: Add a guide cube of empties to place the character in
         return {'FINISHED'}
 
@@ -93,11 +98,24 @@ class ImperiumProperties(bpy.types.PropertyGroup):
     def is_camera(self, object):
         return object.type == 'CAMERA'
     
+    def define_width(self,context):
+        bpy.context.scene.render.resolution_x = self
+        bpy.context.scene.render.resolution_y = self
+        return None
+    
     number_of_frames: bpy.props.IntProperty(
         name="Frame to render",
         default=1,
         min=1,
         max=50
+    )
+    width_frame: bpy.props.IntProperty(
+        name="Width of frames",
+        default=64,
+        min=1,
+        max=128,
+        update = define_width,
+        subtype = 'PIXEL'
     )
     result_path: bpy.props.StringProperty(
         name="Output Path",
@@ -153,6 +171,13 @@ class ImperiumPanel(bpy.types.Panel):
         col = layout.column(align=True)
         col.prop(scene, "frame_start", text="start:")
         col.prop(scene, "frame_end", text="end:")
+        row = layout.row()
+        row.prop(scene.ImperiumProperties,"width_frame", text="width:")
+        
+        #col = layout.column(align=True)
+        #col.prop(scene.render, "resolution_x", text="resX")
+        #col.prop(scene.render, "resolution_y", text="resY")
+        
         row = layout.row()
         row.prop(scene.ImperiumProperties,
                  "number_of_frames", text="number of frames")
