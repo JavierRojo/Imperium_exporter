@@ -5,7 +5,7 @@ bl_info = {
     "name": "Imperium exporter",
     "description": "An add-on for rendering Imperium textures",
     "author": "Javier Rojo Muñoz",
-    "version": (0, 6),
+    "version": (0, 7),
     "location": "PROPERTIES > RENDER > IMPERIUM RENDERER",
     "warning": "Under development: T1-04",
     "wiki_url": "https://github.com/JavierRojo/Imperium_exporter",
@@ -23,12 +23,16 @@ class ImperiumSetToDefaultCamera(bpy.types.Operator):
     
     def execute(self, context):
         scene = context.scene
-        if context.active_object.type != 'CAMERA':
+        if context.active_object and context.active_object.type != 'CAMERA':
             return {'CANCELLED'}
         
         
         cam = context.active_object
+        cam.location=(-1, -4, 3)
+        cam.rotation_euler=(math.pi*2.5/6, 0, 0)
         print(cam.data.name)
+        cam.data.type = 'ORTHO'
+        scene.camera = cam
         
         #angle = math.atan(1/(math.sqrt(2))) # 0.615 rad ~= 35.264º
         #bpy.ops.object.camera_add(
@@ -230,7 +234,7 @@ class ImperiumPanel(bpy.types.Panel):
         box = layout.box()
         box.label(text="Camera")
         
-        if context.active_object.type == 'CAMERA':
+        if context.active_object and context.active_object.type == 'CAMERA':
             box.operator("imperium.convert_to_default_camera", icon="OUTLINER_DATA_CAMERA", text="Convert to default camera")
         else:
             box.operator("imperium.default_camera", icon="OUTLINER_DATA_CAMERA", text="Generate default camera")
