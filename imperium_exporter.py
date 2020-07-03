@@ -5,7 +5,7 @@ bl_info = {
     "name": "Imperium exporter",
     "description": "An add-on for rendering Imperium textures",
     "author": "Javier Rojo Muñoz",
-    "version": (0, 3),
+    "version": (0, 6),
     "location": "PROPERTIES > RENDER > IMPERIUM RENDERER",
     "warning": "Under development: T1-04",
     "wiki_url": "https://github.com/JavierRojo/Imperium_exporter",
@@ -15,7 +15,36 @@ bl_info = {
 
 
 ### --- OPERATOR CLASS --- ###
-class ImperiumDefaultCamera(bpy.types.Operator):
+class ImperiumSetToDefaultCamera(bpy.types.Operator):
+    """Sets any selected camera to a default for the Imperium renderer"""
+    bl_idname = "imperium.convert_to_default_camera"
+    bl_label = "Sets current camera to the Imperium default camera"
+    bl_options = {'REGISTER'}
+    
+    def execute(self, context):
+        scene = context.scene
+        if context.active_object.type != 'CAMERA':
+            return {'CANCELLED'}
+        
+        
+        cam = context.active_object
+        print(cam.data.name)
+        
+        #angle = math.atan(1/(math.sqrt(2))) # 0.615 rad ~= 35.264º
+        #bpy.ops.object.camera_add(
+        #    enter_editmode=False,
+        #    align='WORLD',
+        #    location=(-1, -4, 3),
+        #    rotation=(math.pi*2.5/6, 0, 0)
+        #)
+        #theory for isometric angle:
+        #cam = bpy.data.objects[bpy.context.active_object.name]
+        #cam.data.type = 'ORTHO'
+        #scene.camera = cam
+        # @TODO: Add a guide cube of empties to place the character in
+        return {'FINISHED'}
+    
+class ImperiumCreateDefaultCamera(bpy.types.Operator):
     """Creates a default camera for the Imperium renderer"""
     bl_idname = "imperium.default_camera"
     bl_label = "Imperium default camera"
@@ -79,9 +108,8 @@ class ImperiumRenderer(bpy.types.Operator):
             scene.frame_set(f)
             for deg in range(8):
                 target.rotation_euler[2] = -(deg)*angle_step
-                print(deg)
                 scene.render.filepath = scene.ImperiumProperties.result_path + \
-                    str(deg) + "_"+str(count)
+                    str(deg+1) + "_"+str(count)
                 try:
                     bpy.ops.render.render(write_still=True, use_viewport=False)
                 except:
@@ -173,43 +201,49 @@ class ImperiumPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         ### --- SECOND ITERATION --- ###
-        layout.label(text="T1-04", icon='SCRIPT')
+        layout.label(text="T1-06", icon='SCRIPT')
 
         # --- FRAME PROPERTIES --- #
-        row = layout.row()
-        col = layout.column(align=True)
-        col.prop(scene, "frame_start", text="start:")
-        col.prop(scene, "frame_end", text="end:")
-        row = layout.row()
-        row.prop(scene.ImperiumProperties,"width_frame", text="width:")        
-        row = layout.row()
-        row.prop(scene.ImperiumProperties,
+        box = layout.box()
+        box.label(text="Frame information")
+        col = box.column(align=True)
+        col.prop(scene, "frame_start", text="start")
+        col.prop(scene, "frame_end", text="end")
+        col.prop(scene.ImperiumProperties,
                  "number_of_frames", text="number of frames")
-
-        # --- PATH --- #
-
-        row = layout.row()
-        row.prop(scene.ImperiumProperties, "result_path", text="path")
-        
-        # --- OBJECT --- #
-        row = layout.row()
+        row = box.row()
+        row.prop(scene.ImperiumProperties,"width_frame", text="width")        
+                
+        # --- TARGET --- #
+        layout.row()
+        box = layout.box()
+        box.label(text="Target")
+        row = box.row()        
+        box.prop(scene.ImperiumProperties, "mesh_as_target", text="look for meshes")
         if scene.ImperiumProperties.mesh_as_target:
-            row.prop(scene.ImperiumProperties, "main_target", text="target", icon='MESH_CUBE')
+            box.prop(scene.ImperiumProperties, "main_target", text="", icon='MESH_CUBE')
         else:
-            row.prop(scene.ImperiumProperties, "main_target", text="target", icon='TRACKER')
-            
-        row = layout.row()
-        row.prop(scene.ImperiumProperties, "mesh_as_target", text="look for meshes")
+            box.prop(scene.ImperiumProperties, "main_target", text="", icon='TRACKER')
         
-        row = layout.row()
-        row.operator("imperium.default_camera", icon="OUTLINER_DATA_CAMERA", text="Generate default")
+        # --- CAMERA --- #
+        row =layout.row()
+        box = layout.box()
+        box.label(text="Camera")
         
-        row = layout.row()
+        if context.active_object.type == 'CAMERA':
+            box.operator("imperium.convert_to_default_camera", icon="OUTLINER_DATA_CAMERA", text="Convert to default camera")
+        else:
+            box.operator("imperium.default_camera", icon="OUTLINER_DATA_CAMERA", text="Generate default camera")
+        
+        row = box.row()
         row.prop(scene.ImperiumProperties, "use_active_camera", text="use active camera")
         if not scene.ImperiumProperties.use_active_camera:
-            row = layout.row()
             row.prop(scene.ImperiumProperties, "main_camera", text="camera", icon='OUTLINER_DATA_CAMERA')
         
+        # --- PATH --- #
+        box = layout.box()
+        box.label(text="Output path")
+        box.prop(scene.ImperiumProperties, "result_path", text="")
 
         # --- FINAL OPERATOR --- #
         row = layout.row()
@@ -220,7 +254,8 @@ class ImperiumPanel(bpy.types.Panel):
 ### --- REGISTRATION AND UNREGISTRATION OF CLASSES --- ###
 def register():
     bpy.utils.register_class(ImperiumRenderer)
-    bpy.utils.register_class(ImperiumDefaultCamera)
+    bpy.utils.register_class(ImperiumCreateDefaultCamera)
+    bpy.utils.register_class(ImperiumSetToDefaultCamera)
     bpy.utils.register_class(ImperiumPanel)
 
     bpy.utils.register_class(ImperiumProperties)
@@ -229,7 +264,8 @@ def register():
         
 def unregister():
     bpy.utils.unregister_class(ImperiumRenderer)
-    bpy.utils.unregister_class(ImperiumDefaultCamera)
+    bpy.utils.unregister_class(ImperiumCreateDefaultCamera)
+    bpy.utils.unregister_class(ImperiumSetToDefaultCamera)
     bpy.utils.unregister_class(ImperiumPanel)
 
     bpy.utils.unregister_class(ImperiumProperties)
