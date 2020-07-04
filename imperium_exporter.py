@@ -5,9 +5,9 @@ bl_info = {
     "name": "Imperium exporter",
     "description": "An add-on for rendering Imperium textures",
     "author": "Javier Rojo Muñoz",
-    "version": (0, 7),
+    "version": (0, 8),
     "location": "PROPERTIES > RENDER > IMPERIUM RENDERER",
-    "warning": "Under development: T1-04",
+    "warning": "Under development: T1-08",
     "wiki_url": "https://github.com/JavierRojo/Imperium_exporter",
     "blender": (2, 81, 0),
     "category": "Render"
@@ -28,24 +28,14 @@ class ImperiumSetToDefaultCamera(bpy.types.Operator):
         
         
         cam = context.active_object
-        cam.location=(-1, -4, 3)
-        cam.rotation_euler=(math.pi*2.5/6, 0, 0)
+        cam.location=(-0.5, -4, 2.5)
+        cam.rotation_euler=(math.pi*70/180, 0, 0)
         print(cam.data.name)
         cam.data.type = 'ORTHO'
+        cam.data.ortho_scale = 3
         scene.camera = cam
-        
-        #angle = math.atan(1/(math.sqrt(2))) # 0.615 rad ~= 35.264º
-        #bpy.ops.object.camera_add(
-        #    enter_editmode=False,
-        #    align='WORLD',
-        #    location=(-1, -4, 3),
-        #    rotation=(math.pi*2.5/6, 0, 0)
-        #)
-        #theory for isometric angle:
-        #cam = bpy.data.objects[bpy.context.active_object.name]
-        #cam.data.type = 'ORTHO'
-        #scene.camera = cam
-        # @TODO: Add a guide cube of empties to place the character in
+        bpy.context.scene.render.resolution_x = scene.ImperiumProperties.width_frame
+        bpy.context.scene.render.resolution_y = scene.ImperiumProperties.width_frame
         return {'FINISHED'}
     
 class ImperiumCreateDefaultCamera(bpy.types.Operator):
@@ -55,20 +45,25 @@ class ImperiumCreateDefaultCamera(bpy.types.Operator):
     bl_options = {'REGISTER'}
     
     def execute(self, context):
+        if context.mode != 'OBJECT':
+            return {'CANCELLED'}
         scene = context.scene
         #angle = math.atan(1/(math.sqrt(2))) # 0.615 rad ~= 35.264º
         bpy.ops.object.camera_add(
             enter_editmode=False,
             align='WORLD',
-            location=(-1, -4, 3),
-            rotation=(math.pi*2.5/6, 0, 0)
+            location=(-0.5, -4, 2.5),
+            rotation=(math.pi*70/180, 0, 0)
         )
         #theory for isometric angle:
         cam = bpy.data.objects[bpy.context.active_object.name]
         cam.data.type = 'ORTHO'
+        cam.data.ortho_scale = 3
+        bpy.context.scene.render.resolution_x = scene.ImperiumProperties.width_frame
+        bpy.context.scene.render.resolution_y = scene.ImperiumProperties.width_frame
         scene.camera = cam
-        # @TODO: Add a guide cube of empties to place the character in
         return {'FINISHED'}
+    
 
 
 class ImperiumRenderer(bpy.types.Operator):
@@ -99,6 +94,7 @@ class ImperiumRenderer(bpy.types.Operator):
             return{'CANCELLED'}
             
 
+        scene.render.film_transparent = True
         stepvalue = round((end-start)/n_frames)
         frames = range(start, end, stepvalue)
         if(len(frames) < 1):
@@ -140,8 +136,8 @@ class ImperiumProperties(bpy.types.PropertyGroup):
         return object.type == 'CAMERA'
     
     def define_width(self,context):
-        bpy.context.scene.render.resolution_x = self
-        bpy.context.scene.render.resolution_y = self
+        bpy.context.scene.render.resolution_x = self.width_frame
+        bpy.context.scene.render.resolution_y = self.width_frame
         return None
     
     number_of_frames: bpy.props.IntProperty(
@@ -205,7 +201,7 @@ class ImperiumPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         ### --- SECOND ITERATION --- ###
-        layout.label(text="T1-06", icon='SCRIPT')
+        layout.label(text="T1-08", icon='SCRIPT')
 
         # --- FRAME PROPERTIES --- #
         box = layout.box()
@@ -233,11 +229,11 @@ class ImperiumPanel(bpy.types.Panel):
         row =layout.row()
         box = layout.box()
         box.label(text="Camera")
-        
-        if context.active_object and context.active_object.type == 'CAMERA':
-            box.operator("imperium.convert_to_default_camera", icon="OUTLINER_DATA_CAMERA", text="Convert to default camera")
-        else:
-            box.operator("imperium.default_camera", icon="OUTLINER_DATA_CAMERA", text="Generate default camera")
+        if context.mode == 'OBJECT':        
+            if context.active_object and context.active_object.type == 'CAMERA':
+                box.operator("imperium.convert_to_default_camera", icon="OUTLINER_DATA_CAMERA", text="Convert to default camera")
+            else:
+                box.operator("imperium.default_camera", icon="OUTLINER_DATA_CAMERA", text="Generate default camera")
         
         row = box.row()
         row.prop(scene.ImperiumProperties, "use_active_camera", text="use active camera")
