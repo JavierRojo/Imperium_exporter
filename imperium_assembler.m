@@ -1,3 +1,4 @@
+pkg load statistics;
 close all;
 clear all;
 clc;
@@ -41,7 +42,25 @@ for i = 1:10 %for every frame
    endfor
 endfor
 
-imwrite(combined_im,"resultado.png","Alpha",combined_alpha)
+% @TODO: accentuate alpha contrast
+triple_alpha = cat(3,combined_alpha,combined_alpha,combined_alpha)./255;
+combined_im = combined_im .* triple_alpha;
+combined_im(:,:,2) = combined_im(:,:,2) + ((1-combined_alpha./255) .*(255-combined_alpha));
+% --- COLOR SIMPLIFICATION --- %
+%rgb_2_index(combined_im)
+
+  [ImIx,ImMap] = rgb2ind(combined_im);
+  ncenters = min(64-2, size(ImMap,1));
+  [nearcenter, centers, ~, ~] = kmeans (ImMap, ncenters);
+  %ImMap = centers;
+  %for i = [1:size(ImIx,1)]
+  %  for j = [1:size(ImIx,2)]
+  %    ImIx(i,j) = nearcenter(ImIx(i,j)+1);
+  %  endfor
+  %endfor
+  
+
+imwrite(combined_im,"resultado.png");%,"Alpha",combined_alpha)
 
 cd(originalFolder)
 rmpath(strcat(pwd,"/octave_functions"));
