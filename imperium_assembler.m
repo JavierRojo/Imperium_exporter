@@ -28,7 +28,7 @@ addpath(strcat(pwd,"/octave_functions"));
 % --- COMBINE PNG TEXTURES --- %
 combined_im = zeros(resolution_sprite*n_frames,resolution_sprite*8,3,"uint8");
 combined_alpha = zeros(resolution_sprite*n_frames,resolution_sprite*8,"uint8");
-for i = 1:10 %for every frame
+for i = 1:n_frames %for every frame
   for j = 1:8 %for every direction
       file = name_from_cell(strcat(int2str(j),"_",int2str(i),"\.png"),colnames);
       [im, ~, alphaim] = imread(strcat(input_folder,file));
@@ -42,25 +42,40 @@ for i = 1:10 %for every frame
    endfor
 endfor
 
-% @TODO: accentuate alpha contrast
-triple_alpha = cat(3,combined_alpha,combined_alpha,combined_alpha)./255;
+% --- ALPHA CONTRAST AND COMBINATION WITH RGB --- %
+combined_alpha = floor((combined_alpha./255)+0.1);
+triple_alpha = cat(3,combined_alpha,combined_alpha,combined_alpha);
 combined_im = combined_im .* triple_alpha;
-combined_im(:,:,2) = combined_im(:,:,2) + ((1-combined_alpha./255) .*(255-combined_alpha));
+combined_im(:,:,2) = combined_im(:,:,2) + ((1-combined_alpha).*255);
+
+
 % --- COLOR SIMPLIFICATION --- %
-%rgb_2_index(combined_im)
+[ImIx,ImMap] = rgb2ind(combined_im);
+ncenters = min((256-64)-2, size(ImMap,1));
+[nearcenter, centers, ~, ~] = kmeans (ImMap, ncenters);
 
-  [ImIx,ImMap] = rgb2ind(combined_im);
-  ncenters = min(64-2, size(ImMap,1));
-  [nearcenter, centers, ~, ~] = kmeans (ImMap, ncenters);
-  %ImMap = centers;
-  %for i = [1:size(ImIx,1)]
-  %  for j = [1:size(ImIx,2)]
-  %    ImIx(i,j) = nearcenter(ImIx(i,j)+1);
-  %  endfor
-  %endfor
-  
+% ImMap is in double
+% combined_im is in uint8
+ImMap = centers;
+%@TODO: replace for 
+old_ImIx = ImIx;
+for i = [1:size(ImIx,1)]
+  for j = [1:size(ImIx,2)]
+    ImIx(i,j) = (nearcenter(ImIx(i,j)+1));
+  endfor
+endfor
 
-imwrite(combined_im,"resultado.png");%,"Alpha",combined_alpha)
+% Transform ImMap into a 128 table
+tmp_ImMap = ImMap;
+ImMap = zeros(256,3);
+ImMap((64+2)+1:end,:)=tmp_ImMap;
+ImIx = ImIx+64+2;
+
+
+% --- FRAMES --- %
+% --- SAVE IMAGE --- %
+ImIx = ImIx -1;
+imwrite(ImIx,ImMap,"resultado.bmp");%,"Alpha",combined_alpha)
 
 cd(originalFolder)
 rmpath(strcat(pwd,"/octave_functions"));
