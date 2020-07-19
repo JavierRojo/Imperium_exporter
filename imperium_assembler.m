@@ -6,13 +6,9 @@ clc;
 % --- CONFIGURATION --- %
 % Load configuration from .cfg file
 originalFolder = pwd();
+display("loading configuration file");
 configurationFile = "./configuration.cfg";
 run(configurationFile)
-
-% n_frames
-% resolution_sprite
-% input_folder
-% output_folder
 
 if size(input_folder,1) == 0
   [colnames, input_folder, ~] = uigetfile ("MultiSelect", "ON");
@@ -26,6 +22,7 @@ cd(originalFolder)
 addpath(strcat(pwd,"/octave_functions"));
 
 % --- COMBINE PNG TEXTURES --- %
+display("combining png images");
 combined_im = zeros(resolution_sprite*n_frames,resolution_sprite*8,3,"uint8");
 combined_alpha = zeros(resolution_sprite*n_frames,resolution_sprite*8,"uint8");
 for i = 1:n_frames %for every frame
@@ -43,6 +40,7 @@ for i = 1:n_frames %for every frame
 endfor
 
 % --- ALPHA CONTRAST AND COMBINATION WITH RGB --- %
+display("adjusting alpha");
 combined_alpha = floor((combined_alpha./255)+0.1);
 triple_alpha = cat(3,combined_alpha,combined_alpha,combined_alpha);
 combined_im = combined_im .* triple_alpha;
@@ -50,6 +48,7 @@ combined_im(:,:,2) = combined_im(:,:,2) + ((1-combined_alpha).*255);
 
 
 % --- COLOR SIMPLIFICATION --- %
+display("simplifying colors");
 [ImIx,ImMap] = rgb2ind(combined_im);
 ncenters = min((256-64)-2, size(ImMap,1));
 [nearcenter, centers, ~, ~] = kmeans (ImMap, ncenters);
@@ -70,12 +69,64 @@ tmp_ImMap = ImMap;
 ImMap = zeros(256,3);
 ImMap((64+2)+1:end,:)=tmp_ImMap;
 ImIx = ImIx+64+2;
+ImMap(64+1,:) = [0, 1, 0];
+ImMap(64+2,:) = [1, 0, 1];
+display("setting alpha");
+for i = [1:size(ImIx,1)]
+  for j = [1:size(ImIx,2)]
+    if combined_alpha(i,j) < 0.1
+      ImIx(i,j) = 64+1;
+    endif
+  endfor
+endfor
 
 
 % --- FRAMES --- %
+% 
+% ooo|ooo|ooo
+% ooo|ooo|ooo
+% ooo|ooo|ooo
+% ---*---*---
+% ooo|ooo|ooo
+% ooo|ooo|ooo
+% ooo|ooo|ooo
+% ---*---*---
+% ooo|ooo|ooo
+% ooo|ooo|ooo
+% ooo|ooo|ooo
+% 
+disp("adding frames");
+ImIx_f = zeros(size(ImIx,1)+n_frames-1, size(ImIx,2)+7)+1;
+for i=1:n_frames
+  for j=1:8
+    if i==1
+      if j == 1
+        ImIx_f((i-1)*resolution_sprite+i:(i)*resolution_sprite, (j-1)*resolution_sprite+j:(j)*resolution_sprite) = ...
+        ImIx((i-1)*resolution_sprite+1:(i)*resolution_sprite, (j-1)*resolution_sprite+1:(j)*resolution_sprite);
+      else
+        ImIx_f((i-1)*resolution_sprite+i:(i)*resolution_sprite+i-1, (j-1)*resolution_sprite+j:(j)*resolution_sprite+j-1) = ...
+        ImIx((i-1)*resolution_sprite+1:(i)*resolution_sprite, (j-1)*resolution_sprite+1:(j)*resolution_sprite);
+      endif
+    else
+      if j == 1
+        ImIx_f((i-1)*resolution_sprite+i:(i)*resolution_sprite+i-1, (j-1)*resolution_sprite+j:(j)*resolution_sprite) = ...
+        ImIx((i-1)*resolution_sprite+1:(i)*resolution_sprite, (j-1)*resolution_sprite+1:(j)*resolution_sprite);
+      else
+        ImIx_f((i-1)*resolution_sprite+i:(i)*resolution_sprite+i-1, (j-1)*resolution_sprite+j:(j)*resolution_sprite+j-1) = ...
+        ImIx((i-1)*resolution_sprite+1:(i)*resolution_sprite, (j-1)*resolution_sprite+1:(j)*resolution_sprite);
+      endif
+    endif
+  endfor
+endfor
+
+
+frames_i = resolution_sprite+1:resolution_sprite+1:n_frames*resolution_sprite+n_frames-1;
+frames_j = resolution_sprite+1:resolution_sprite+1:7*resolution_sprite+7;
+ImIx_f(:,frames_j)=64+2;
+ImIx_f(frames_i,:)=64+2;
 % --- SAVE IMAGE --- %
-ImIx = ImIx -1;
-imwrite(ImIx,ImMap,"resultado.bmp");%,"Alpha",combined_alpha)
+%ImIx_f = ImIx_f -1;
+imwrite(ImIx_f,ImMap,"resultado.BMP");%,"Alpha",combined_alpha)
 
 cd(originalFolder)
 rmpath(strcat(pwd,"/octave_functions"));
