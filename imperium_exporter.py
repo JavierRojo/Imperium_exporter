@@ -1,19 +1,117 @@
 import bpy
 import math
+import os
 
 bl_info = {
     "name": "Imperium exporter",
     "description": "An add-on for rendering Imperium textures",
     "author": "Javier Rojo Muñoz",
-    "version": (1, 0),
+    "version": (1, 7),
     "location": "PROPERTIES > RENDER > IMPERIUM RENDERER",
-    "warning": "Further development incoming",
+    "warning": "Further development incoming. Only works with eevee.",
     "wiki_url": "https://github.com/JavierRojo/Imperium_exporter",
     "blender": (2, 81, 0),
     "category": "Render"
 }
 
+# --- FUNCTIONS --- #
+def create_shadow_catcher():
+    if bpy.data.materials.find("ImpMat_shadow_catcher") == 0:
+        print("returning existing material")
+        return bpy.data.materials["ImpMat_shadow_catcher"]
+    #else
+    mat = bpy.data.materials.new(name="ImpMat_shadow_catcher") #set new material to variable
+    mat.use_nodes = True
+    mat.shadow_method = 'NONE'
+    mat.blend_method = 'BLEND'
+        
+    # WORKING WITH NODES
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+        
+    # create output node
+    node_output = nodes.new(type='ShaderNodeOutputMaterial') 
+        
+    # create mix node
+    mix_shader = nodes.new(type="ShaderNodeMixShader")
+    mix_shader.inputs[0].default_value = 0.75
+    link = links.new(mix_shader.outputs[0], node_output.inputs[0])
+        
+        
+    # create diffuse node
+    shadow_color = nodes.new(type="ShaderNodeRGB")
+    shadow_color.outputs[0].default_value = (0,0,0,1)
+    link = links.new(shadow_color.outputs[0], mix_shader.inputs[1])
+        
+        
+    # create diffuse node
+    trans = nodes.new(type="ShaderNodeBsdfTransparent")
+    link = links.new(trans.outputs[0], mix_shader.inputs[2])
 
+    # create diffuse node
+    ramp = nodes.new(type="ShaderNodeMath")
+    ramp.operation = 'GREATER_THAN'
+    ramp.inputs[1].default_value = 0.1
+    link = links.new(ramp.outputs[0], mix_shader.inputs[0])
+    ##ramp = nodes.new(type="ShaderNodeValToRGB")
+    ##ramp.elements[1].position = 0.1
+    ##link = links.new(ramp.outputs[0], mix_shader.inputs[0])
+    
+    # converter RGB2BW
+    rgb2bw = nodes.new(type="ShaderNodeRGBToBW")
+    link = links.new(rgb2bw.outputs[0], ramp.inputs[0])
+    
+    # converter SHADER2RGB
+    shader2rgb = nodes.new(type="ShaderNodeShaderToRGB")
+    link = links.new(shader2rgb.outputs[0], rgb2bw.inputs[0])
+    
+    # create diffuse node
+    diffuse_origin = nodes.new(type="ShaderNodeBsdfDiffuse")
+    diffuse_origin.inputs[0].default_value = (1,1,1,1)
+    link = links.new(diffuse_origin.outputs[0], shader2rgb.inputs[0])
+    return mat
+
+def create_holdout():
+    if bpy.data.materials.find("ImpMat_holdout") == 0:
+        return bpy.data.materials["ImpMat_holdout"]
+    
+    #else
+    mat = bpy.data.materials.new(name="ImpMat_holdout") #set new material to variable
+    mat.use_nodes = True
+    mat.shadow_method = 'OPAQUE'
+    mat.blend_method = 'BLEND'
+        
+    # WORKING WITH NODES
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+        
+    # create output node
+    node_output = nodes.new(type='ShaderNodeOutputMaterial') 
+        
+    # create mix node
+    holdout = nodes.new(type="ShaderNodeHoldout")
+    link = links.new(holdout.outputs[0], node_output.inputs[0])
+    
+    return mat
+
+
+
+# --- OPERATOR CLASS --- #
+class ImperiumDebug(bpy.types.Operator):
+    """If you can think it, you can mess with it"""
+    bl_idname = "imperium.debug"
+    bl_label = "Disaster, chaos"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        scene = context.scene
+        #BEGINING OF DEBUG
+        #END OF DEBUG
+        return {'FINISHED'}         
+        
+    
 # --- OPERATOR CLASS --- #
 class ImperiumSetToDefaultCamera(bpy.types.Operator):
     """Sets any selected camera with the default settings for the Imperium renderer"""
@@ -107,16 +205,22 @@ class ImperiumRenderer(bpy.types.Operator):
         scene.render.film_transparent = True
 
         # Divide the timeline into even sections
+        # @TODO: something wrong when setting 2 frames
         stepvalue = round((end-start)/n_frames)
         frames = range(start, end, stepvalue)
         if(len(frames) < 1):
             frames = [start]
-        count = 1
+        
 
         # Store original rotation
         original_rot = target.rotation_euler.copy()
         angle_step = math.pi*0.25
-
+        
+        count = 1
+        if not os.path.exists(scene.ImperiumProperties.result_path+"color/"):
+            os.mkdir(scene.ImperiumProperties.result_path+"color/")
+            
+            
         for f in frames:
             # Set next frame of the animation sequence
             scene.frame_set(f)
@@ -126,7 +230,7 @@ class ImperiumRenderer(bpy.types.Operator):
 
                 # Filepath based on frame and direction so matrix can be assembled
                 scene.render.filepath = scene.ImperiumProperties.result_path + \
-                    str(deg+1) + "_"+str(count)
+                    "color/"+str(deg+1) + "_"+str(count)
                 try:
                     bpy.ops.render.render(write_still=True, use_viewport=False)
                 except:
@@ -135,6 +239,65 @@ class ImperiumRenderer(bpy.types.Operator):
                     pass
             count += 1
         target.rotation_euler = original_rot.copy()
+            
+            
+        # Shadow loop
+        if scene.ImperiumProperties.render_shadow:
+            
+            bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0, 0, 0))
+            plane = bpy.data.objects[bpy.context.active_object.name]
+            plane.scale = [10,10,10]
+            shadow_catcher = create_shadow_catcher()
+            plane.data.materials.append(shadow_catcher) #add the material to the plane 
+            plane.material_slots.update()        
+            holdout = create_holdout()
+            object_save_list = []
+            for o in bpy.data.objects:
+                if o.material_slots.values() == [] or o == plane:
+                    continue
+                else:   
+                    print(o.name)             
+                    save_list = []
+                    for s in o.material_slots: 
+                        save_list.append(s.material.name)
+                        print(s.material)
+                        s.material = holdout
+                        print(s.material)
+                    object_save_list.append([o,save_list])            
+                o.material_slots.update()      
+
+            if not os.path.exists(scene.ImperiumProperties.result_path+"shadow/"):
+                os.mkdir(scene.ImperiumProperties.result_path+"shadow/")
+            count = 1
+            for f in frames:
+                # Set next frame of the animation sequence
+                scene.frame_set(f)
+                for deg in range(8):
+                    # One iteration for each direction (clockwise)
+                    target.rotation_euler[2] = -(deg)*angle_step
+
+                    # Filepath based on frame and direction so matrix can be assembled
+                    scene.render.filepath = scene.ImperiumProperties.result_path + \
+                        "shadow/"+ str(deg+1) + "_"+str(count)
+                    try:
+                        bpy.ops.render.render(write_still=True, use_viewport=False)
+                    except:
+                        self.report({'WARNING'}, "Could not render " +
+                                    scene.render.filepath)
+                        pass
+                count += 1
+            target.rotation_euler = original_rot.copy()
+            
+            #for e in object_save_list:
+            #    slots = e[0].material_slots
+            #    for s,orig_name in zip(slots,e[1]):   
+            #        s.material = bpy.data.materials[orig_name]           
+            #    e[0].material_slots.update()     
+            
+            
+            # bpy.ops.object.select_all(action='DESELECT')
+            # plane.select_set(True)
+            # bpy.ops.object.delete() 
         return {'FINISHED'}
 
 
@@ -170,7 +333,7 @@ class ImperiumProperties(bpy.types.PropertyGroup):
         name="Width of frames",
         default=64,
         min=1,
-        max=128,
+        max=256,
         update=define_width,
         subtype='PIXEL'
     )
@@ -206,6 +369,12 @@ class ImperiumProperties(bpy.types.PropertyGroup):
         name="Use active camera",
         description="Use the active camera if posible",
         default=True
+    )
+    # Decides whether to use current active camera or select one
+    render_shadow: bpy.props.BoolProperty(
+        name="Render shadow texture",
+        description="Renders the shadow texture of current model",
+        default=False
     )
 
 
@@ -274,13 +443,16 @@ class ImperiumPanel(bpy.types.Panel):
 
         # --- PATH --- #
         box = layout.box()
-        box.label(text="Output path")
+        box.label(text="Output parameters")
         box.prop(scene.ImperiumProperties, "result_path", text="")
+        box.prop(scene.ImperiumProperties, "render_shadow", text="Render shadow")
+        
 
         # --- FINAL OPERATOR --- #
         row = layout.row()
         row.scale_y = 1.5
         row.operator("imperium.renderer", icon="PLAY", text="Render")
+        row.operator("imperium.debug", text="DEBUG")
 
 
 ### --- REGISTRATION AND UNREGISTRATION OF CLASSES --- ###
@@ -289,6 +461,7 @@ def register():
     bpy.utils.register_class(ImperiumCreateDefaultCamera)
     bpy.utils.register_class(ImperiumSetToDefaultCamera)
     bpy.utils.register_class(ImperiumPanel)
+    bpy.utils.register_class(ImperiumDebug)
 
     bpy.utils.register_class(ImperiumProperties)
     bpy.types.Scene.ImperiumProperties = bpy.props.PointerProperty(
@@ -300,6 +473,7 @@ def unregister():
     bpy.utils.unregister_class(ImperiumCreateDefaultCamera)
     bpy.utils.unregister_class(ImperiumSetToDefaultCamera)
     bpy.utils.unregister_class(ImperiumPanel)
+    bpy.utils.unregister_class(ImperiumDebug)
 
     bpy.utils.unregister_class(ImperiumProperties)
     del bpy.types.Scene.ImperiumProperties
