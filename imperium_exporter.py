@@ -39,9 +39,9 @@ def create_shadow_catcher():
     link = links.new(mix_shader.outputs[0], node_output.inputs[0])
         
         
-    # create diffuse node
-    shadow_color = nodes.new(type="ShaderNodeRGB")
-    shadow_color.outputs[0].default_value = (0,0,0,1)
+    # create emission node
+    shadow_color = nodes.new(type="ShaderNodeEmission")
+    shadow_color.inputs[0].default_value = (1,1,1,1)
     link = links.new(shadow_color.outputs[0], mix_shader.inputs[1])
         
         
@@ -49,14 +49,13 @@ def create_shadow_catcher():
     trans = nodes.new(type="ShaderNodeBsdfTransparent")
     link = links.new(trans.outputs[0], mix_shader.inputs[2])
 
-    # create diffuse node
+    # Contrast up the result
+    # @TODO: force to set a single Sun lamp and give it angle 0.
+    # @TODO: mark the property as a variable and test the result on a window    
     ramp = nodes.new(type="ShaderNodeMath")
     ramp.operation = 'GREATER_THAN'
-    ramp.inputs[1].default_value = 0.1
+    ramp.inputs[1].default_value = 0.25
     link = links.new(ramp.outputs[0], mix_shader.inputs[0])
-    ##ramp = nodes.new(type="ShaderNodeValToRGB")
-    ##ramp.elements[1].position = 0.1
-    ##link = links.new(ramp.outputs[0], mix_shader.inputs[0])
     
     # converter RGB2BW
     rgb2bw = nodes.new(type="ShaderNodeRGBToBW")
@@ -130,6 +129,7 @@ class ImperiumSetToDefaultCamera(bpy.types.Operator):
         cam.rotation_euler = (math.pi*70/180, 0, 0)
         cam.data.type = 'ORTHO'
         cam.data.ortho_scale = 3
+        cam.data.clip_end = 40
         scene.camera = cam
 
         # Default falue for render resolution
@@ -163,6 +163,7 @@ class ImperiumCreateDefaultCamera(bpy.types.Operator):
         # Setting isometric characteristics to the camera
         cam.data.type = 'ORTHO'
         cam.data.ortho_scale = 3
+        cam.data.clip_end = 40
         bpy.context.scene.render.resolution_x = scene.ImperiumProperties.width_frame
         bpy.context.scene.render.resolution_y = scene.ImperiumProperties.width_frame
 
@@ -252,6 +253,7 @@ class ImperiumRenderer(bpy.types.Operator):
             plane.material_slots.update()        
             holdout = create_holdout()
             object_save_list = []
+            #@TODO: deactivate all lights except Sun. Activate Sun
             for o in bpy.data.objects:
                 if o.material_slots.values() == [] or o == plane:
                     continue
@@ -287,17 +289,18 @@ class ImperiumRenderer(bpy.types.Operator):
                         pass
                 count += 1
             target.rotation_euler = original_rot.copy()
+            #@TODO: reactivate all lights except Sun. Dectivate Sun?
             
-            #for e in object_save_list:
-            #    slots = e[0].material_slots
-            #    for s,orig_name in zip(slots,e[1]):   
-            #        s.material = bpy.data.materials[orig_name]           
-            #    e[0].material_slots.update()     
+            for e in object_save_list:
+                slots = e[0].material_slots
+                for s,orig_name in zip(slots,e[1]):   
+                    s.material = bpy.data.materials[orig_name]           
+                e[0].material_slots.update()     
             
             
-            # bpy.ops.object.select_all(action='DESELECT')
-            # plane.select_set(True)
-            # bpy.ops.object.delete() 
+            bpy.ops.object.select_all(action='DESELECT')
+            plane.select_set(True)
+            bpy.ops.object.delete() 
         return {'FINISHED'}
 
 
@@ -313,7 +316,10 @@ class ImperiumProperties(bpy.types.PropertyGroup):
             return object.type == 'EMPTY'
 
     def is_camera(self, object):
-        return object.type == 'CAMERA'
+        return object.type == 'CAMERA'    
+    
+    def is_sun_light(self, object):
+        return object.type == 'LIGHT' and object.data.type == 'SUN'
 
     # Coordinates the resolution set for x and y axis
     def define_width(self, context):
@@ -375,6 +381,13 @@ class ImperiumProperties(bpy.types.PropertyGroup):
         name="Render shadow texture",
         description="Renders the shadow texture of current model",
         default=False
+    )
+    # Camera that will perform the render
+    main_light: bpy.props.PointerProperty(
+        name="Main light",
+        description="Light that will cast the shadows",
+        type=bpy.types.Object,
+        poll=is_sun_light
     )
 
 
@@ -446,7 +459,8 @@ class ImperiumPanel(bpy.types.Panel):
         box.label(text="Output parameters")
         box.prop(scene.ImperiumProperties, "result_path", text="")
         box.prop(scene.ImperiumProperties, "render_shadow", text="Render shadow")
-        
+        if scene.ImperiumProperties.render_shadow:
+            box.prop(scene.ImperiumProperties, "main_light",icon='LIGHT_SUN')
 
         # --- FINAL OPERATOR --- #
         row = layout.row()
