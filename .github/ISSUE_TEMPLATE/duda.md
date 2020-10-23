@@ -1,7 +1,7 @@
 ---
 name: Duda
 about: Pregunta sobre el funcionamiento de la herramienta
-title: ''
+title: 'Duda sobre [CONTEXTO]: ¿Cómo hago X?'
 labels: question
 assignees: ''
 

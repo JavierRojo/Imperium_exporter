@@ -1,7 +1,7 @@
 ---
 name: Petición de mejoras
 about: Propón una mejora para el proyecto
-title: ''
+title: 'Mejora de [CONTEXTO]: título descriptivo de la mejora propuesta'
 labels: mejora
 assignees: ''
 
