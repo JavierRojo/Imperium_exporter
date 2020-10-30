@@ -14,6 +14,7 @@ bl_info = {
     "category": "Render"
 }
 
+# -----------------------------------------------------------------------------------------------------
 # --- FUNCTIONS --- #
 def create_shadow_catcher():
     if bpy.data.materials.find("ImpMat_shadow_catcher") == 0:
@@ -71,15 +72,15 @@ def create_shadow_catcher():
     link = links.new(diffuse_origin.outputs[0], shader2rgb.inputs[0])
     return mat
 
-def create_holdout():
-    if bpy.data.materials.find("ImpMat_holdout") == 0:
-        return bpy.data.materials["ImpMat_holdout"]
+def create_holdout(name_holdout_mat):
+    if bpy.data.materials.find(name_holdout_mat) == 0:
+        return bpy.data.materials[name_holdout_mat]
     
     #else
-    mat = bpy.data.materials.new(name="ImpMat_holdout") #set new material to variable
+    mat = bpy.data.materials.new(name=name_holdout_mat) #set new material to variable
     mat.use_nodes = True
     mat.shadow_method = 'OPAQUE'
-    mat.blend_method = 'BLEND'
+    mat.blend_method = 'OPAQUE'
         
     # WORKING WITH NODES
     nodes = mat.node_tree.nodes
@@ -95,8 +96,35 @@ def create_holdout():
     
     return mat
 
+def create_emissive(name_emissive_mat):
+    if bpy.data.materials.find(name_emissive_mat) == 0:
+        return bpy.data.materials[name_emissive_mat]
+    
+    #else
+    mat = bpy.data.materials.new(name=name_emissive_mat) #set new material to variable
+    mat.use_nodes = True
+    mat.shadow_method = 'OPAQUE'
+    mat.blend_method = 'BLEND'
+        
+    # WORKING WITH NODES
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+        
+    # create output node
+    node_output = nodes.new(type='ShaderNodeOutputMaterial') 
+        
+    # create emission node
+    emission = nodes.new(type="ShaderNodeEmission")
+    emission.inputs[0].default_value = (1, 1, 1, 1)
+    emission.inputs[1].default_value = 1
+
+    link = links.new(emission.outputs[0], node_output.inputs[0])
+    
+    return mat
 
 
+# -----------------------------------------------------------------------------------------------------
 # --- OPERATOR CLASS --- #
 class ImperiumDebug(bpy.types.Operator):
     """If you can think it, you can mess with it"""
@@ -107,10 +135,69 @@ class ImperiumDebug(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         #BEGINING OF DEBUG
+        if scene.ImperiumProperties.render_level:
+            self.report({'INFO'}, "Renderizando mascara de nivel")
+            
+            #########    
+            lvl_prefix = "ImpMat_level"   
+            holdout = create_holdout("ImpMat_holdout")
+            em = create_emissive("ImpMat_emission");
+            object_save_list = []
+            for o in bpy.data.objects:
+                if o.material_slots.values() == []:
+                    continue
+                else:                
+                    save_list = []
+                    for s in o.material_slots: 
+                        save_list.append(s.material.name)
+                        if s.material.name.startswith(lvl_prefix):
+                            s.material = em
+                        else:
+                            s.material = holdout
+                    object_save_list.append([o,save_list])            
+                o.material_slots.update()      
+
+            if not os.path.exists(scene.ImperiumProperties.result_path+"level/"):
+                os.mkdir(scene.ImperiumProperties.result_path+"level/")
+            count = 1
+            for f in frames:
+                # Set next frame of the animation sequence
+                scene.frame_set(f)
+                for deg in range(8):
+                    # One iteration for each direction (clockwise)
+                    target.rotation_euler[2] = -(deg)*angle_step
+
+                    # Filepath based on frame and direction so matrix can be assembled
+                    scene.render.filepath = scene.ImperiumProperties.result_path + \
+                        "level/"+ str(deg+1) + "_"+str(count)
+                    try:
+                        bpy.ops.render.render(write_still=True, use_viewport=False)
+                    except:
+                        self.report({'WARNING'}, "Could not render " +
+                                    scene.render.filepath)
+                        pass
+                count += 1
+            target.rotation_euler = original_rot.copy()            
+            for e in object_save_list:
+                slots = e[0].material_slots
+                for s,orig_name in zip(slots,e[1]):   
+                    s.material = bpy.data.materials[orig_name]           
+                e[0].material_slots.update()     
+            
+            
+            bpy.ops.object.select_all(action='DESELECT')         
+            
+            
+            
+            
+            
+            ###########
+            
+            
         #END OF DEBUG
         return {'FINISHED'}         
         
-    
+# -----------------------------------------------------------------------------------------------------    
 # --- OPERATOR CLASS --- #
 class ImperiumSetToDefaultCamera(bpy.types.Operator):
     """Sets any selected camera with the default settings for the Imperium renderer"""
@@ -137,7 +224,7 @@ class ImperiumSetToDefaultCamera(bpy.types.Operator):
         bpy.context.scene.render.resolution_y = scene.ImperiumProperties.width_frame
         return {'FINISHED'}
 
-
+# -----------------------------------------------------------------------------------------------------
 # --- IMPERIUM CREATE DEFAULT CAMERA --- #
 class ImperiumCreateDefaultCamera(bpy.types.Operator):
     """Creates a default camera for the Imperium renderer"""
@@ -171,7 +258,7 @@ class ImperiumCreateDefaultCamera(bpy.types.Operator):
         scene.camera = cam
         return {'FINISHED'}
 
-
+# -----------------------------------------------------------------------------------------------------
 # --- IMPERIUM RENDERER --- #
 class ImperiumRenderer(bpy.types.Operator):
     """Render the Imperium textures into an output folder"""
@@ -242,16 +329,65 @@ class ImperiumRenderer(bpy.types.Operator):
         target.rotation_euler = original_rot.copy()
             
             
-        # Shadow loop
-        if scene.ImperiumProperties.render_shadow:
+        # Level loop
+        if scene.ImperiumProperties.render_level:
+            lvl_prefix = "ImpMat_level"   
+            holdout = create_holdout("ImpMat_holdout")
+            em = create_emissive("ImpMat_emission");
+            object_save_list = []
+            for o in bpy.data.objects:
+                if o.material_slots.values() == []:
+                    continue
+                else:                
+                    save_list = []
+                    for s in o.material_slots: 
+                        save_list.append(s.material.name)
+                        if s.material.name.startswith(lvl_prefix):
+                            s.material = em
+                        else:
+                            s.material = holdout
+                    object_save_list.append([o,save_list])            
+                o.material_slots.update()      
+
+            if not os.path.exists(scene.ImperiumProperties.result_path+"level/"):
+                os.mkdir(scene.ImperiumProperties.result_path+"level/")
+            count = 1
+            for f in frames:
+                # Set next frame of the animation sequence
+                scene.frame_set(f)
+                for deg in range(8):
+                    # One iteration for each direction (clockwise)
+                    target.rotation_euler[2] = -(deg)*angle_step
+
+                    # Filepath based on frame and direction so matrix can be assembled
+                    scene.render.filepath = scene.ImperiumProperties.result_path + \
+                        "level/"+ str(deg+1) + "_"+str(count)
+                    try:
+                        bpy.ops.render.render(write_still=True, use_viewport=False)
+                    except:
+                        self.report({'WARNING'}, "Could not render " +
+                                    scene.render.filepath)
+                        pass
+                count += 1
+            target.rotation_euler = original_rot.copy()            
+            for e in object_save_list:
+                slots = e[0].material_slots
+                for s,orig_name in zip(slots,e[1]):   
+                    s.material = bpy.data.materials[orig_name]           
+                e[0].material_slots.update()  
+            bpy.ops.object.select_all(action='DESELECT')
             
+            
+            
+            
+        if scene.ImperiumProperties.render_shadow:            
             bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0, 0, 0))
             plane = bpy.data.objects[bpy.context.active_object.name]
             plane.scale = [10,10,10]
             shadow_catcher = create_shadow_catcher()
             plane.data.materials.append(shadow_catcher) #add the material to the plane 
             plane.material_slots.update()        
-            holdout = create_holdout()
+            holdout = create_holdout("ImpMat_holdout")
             object_save_list = []
             #@TODO: deactivate all lights except Sun. Activate Sun
             for o in bpy.data.objects:
@@ -303,7 +439,7 @@ class ImperiumRenderer(bpy.types.Operator):
             bpy.ops.object.delete() 
         return {'FINISHED'}
 
-
+# -----------------------------------------------------------------------------------------------------
 # --- VARIABLES CLASS --- #
 class ImperiumProperties(bpy.types.PropertyGroup):
     """Properties for the imperium renderer addon"""
@@ -389,8 +525,14 @@ class ImperiumProperties(bpy.types.PropertyGroup):
         type=bpy.types.Object,
         poll=is_sun_light
     )
+    # Decides whether to use current active camera or select one
+    render_level: bpy.props.BoolProperty(
+        name="Render level mask",
+        description="Renders the level mask of current model",
+        default=False
+    )
 
-
+# -----------------------------------------------------------------------------------------------------
 # --- UI IMPERIUM PANEL --- #
 class ImperiumPanel(bpy.types.Panel):
     """Main panel for the add-on"""
@@ -461,6 +603,8 @@ class ImperiumPanel(bpy.types.Panel):
         box.prop(scene.ImperiumProperties, "render_shadow", text="Render shadow")
         if scene.ImperiumProperties.render_shadow:
             box.prop(scene.ImperiumProperties, "main_light",icon='LIGHT_SUN')
+            
+        box.prop(scene.ImperiumProperties, "render_level", text="Render level mask")
 
         # --- FINAL OPERATOR --- #
         row = layout.row()
@@ -468,7 +612,7 @@ class ImperiumPanel(bpy.types.Panel):
         row.operator("imperium.renderer", icon="PLAY", text="Render")
         row.operator("imperium.debug", text="DEBUG")
 
-
+# -----------------------------------------------------------------------------------------------------
 ### --- REGISTRATION AND UNREGISTRATION OF CLASSES --- ###
 def register():
     bpy.utils.register_class(ImperiumRenderer)

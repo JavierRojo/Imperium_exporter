@@ -9,7 +9,7 @@ originalFolder = pwd();
 display("loading configuration file");
 configurationFile = "./configuration.cfg";
 run(configurationFile);
-input_folder = strcat(input_folder,"color/");
+input_folder = strcat(input_folder,"shadow/");
 
 if size(input_folder,1) == 0
   [colnames, input_folder, ~] = uigetfile ("MultiSelect", "ON");
@@ -34,7 +34,7 @@ for i = 1:n_frames %for every frame
       sup_row = i*resolution_sprite;
       inf_col = ((j-1)*resolution_sprite)+1;
       sup_col = j*resolution_sprite;
-      combined_im(inf_row:sup_row, inf_col:sup_col,:) = im(:,:,:);
+      %combined_im(inf_row:sup_row, inf_col:sup_col,:) = im(:,:,:);
       combined_alpha(inf_row:sup_row, inf_col:sup_col,:) = alphaim(:,:,:);
       %combined image in format 0-255
    endfor
@@ -42,45 +42,18 @@ endfor
 
 % --- ALPHA CONTRAST AND COMBINATION WITH RGB --- %
 display("adjusting alpha");
-combined_alpha = floor((combined_alpha./255)+0.1);
-triple_alpha = cat(3,combined_alpha,combined_alpha,combined_alpha);
-combined_im = combined_im .* triple_alpha;
-combined_im(:,:,2) = combined_im(:,:,2) + ((1-combined_alpha).*255);
-
+combined_alpha = round((combined_alpha./255)+0.1);
+%combined_alpha = combined_alpha .* 255;
+%imwrite(combined_alpha,"combined_alpha.png");
 
 % --- COLOR SIMPLIFICATION --- %
-display("simplifying colors");
-[ImIx,ImMap] = rgb2ind(combined_im);
-ncenters = min((256-64)-2, size(ImMap,1));
-[nearcenter, centers, ~, ~] = kmeans (ImMap, ncenters);
-
-% ImMap is in double
-% combined_im is in uint8
-ImMap = centers;
-%@TODO: replace for 
-old_ImIx = ImIx;
-for i = [1:size(ImIx,1)]
-  for j = [1:size(ImIx,2)]
-    ImIx(i,j) = (nearcenter(ImIx(i,j)+1));
-  endfor
-endfor
-
-% Transform ImMap into a 128 table
-tmp_ImMap = ImMap;
+display("Creating color table");
 ImMap = zeros(256,3);
-ImMap((64+2)+1:end,:)=tmp_ImMap;
-ImIx = ImIx+64+2;
-ImMap(64+1,:) = [0, 1, 0];
-ImMap(64+2,:) = [1, 0, 1];
-display("setting alpha");
-for i = [1:size(ImIx,1)]
-  for j = [1:size(ImIx,2)]
-    if combined_alpha(i,j) < 0.1
-      ImIx(i,j) = 64+1;
-    endif
-  endfor
-endfor
-
+ImMap (1:2,:) = [
+0,1,0;
+0,0,0;
+];
+ImIx = combined_alpha;
 
 % --- FRAMES --- %
 % 
@@ -97,7 +70,7 @@ endfor
 % ooo|ooo|ooo
 % 
 disp("adding frames");
-ImIx_f = zeros(size(ImIx,1)+n_frames-1, size(ImIx,2)+7)+1;
+ImIx_f = zeros(size(ImIx,1)+n_frames-1, size(ImIx,2)+7);
 for i=1:n_frames
   for j=1:8
     if i==1
@@ -123,11 +96,11 @@ endfor
 
 frames_i = resolution_sprite+1:resolution_sprite+1:n_frames*resolution_sprite+n_frames-1;
 frames_j = resolution_sprite+1:resolution_sprite+1:7*resolution_sprite+7;
-ImIx_f(:,frames_j)=64+2;
-ImIx_f(frames_i,:)=64+2;
+ImIx_f(:,frames_j)=1;
+ImIx_f(frames_i,:)=1;
 % --- SAVE IMAGE --- %
-%ImIx_f = ImIx_f -1;
-imwrite(ImIx_f,ImMap,"resultado_color.BMP");%,"Alpha",combined_alpha)
+ImIx_f = ImIx_f + 1;
+imwrite(ImIx_f,ImMap,"resultado_shadow.BMP");%,"Alpha",combined_alpha)
 
 cd(originalFolder)
 rmpath(strcat(pwd,"/octave_functions"));
