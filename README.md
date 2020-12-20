@@ -13,9 +13,9 @@ The third part will be delayed until more capabilities are implemented. A TODO l
 ## TODO list
 * [ ] Finish T2 (documentation and functions).
 * [ ] Better document the tool.
-* [ ] Avoid double for loops.
+* [x] Avoid double for loops.
 * [ ] Implement shadow textures.
-* [ ] Implement level colors.
+* [x] Implement level colors.
 * [ ] Implement player colors.
 * [ ] Implement building textures.
 * [ ] Implement GUI textures.
