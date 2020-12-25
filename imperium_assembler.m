@@ -74,8 +74,6 @@ ncenters = min((256-64)-2-n_level_colors, size(ImMap,1));
 % combined_im is in uint8
 ImMap = centers;
 ImIx = nearcenter(ImIx+1);
-imwrite(ImIx,ImMap,"indexed_color.BMP");
-
 
 % --- COLOR SIMPLIFICATION LEVEL COLOR--- %
 display("simplifying colors of level color texture");
@@ -84,7 +82,6 @@ gray_im = uint8(zeros(size(graymap,1),size(graymap,2),3));
 gray_im(:,:,1) = graymap;
 gray_im(:,:,2) = graymap;
 gray_im(:,:,3) = graymap;
-imwrite(gray_im,"befor_ix_grayimage.BMP");
 
 [ImIx_lvl,ImMap_lvl] = rgb2ind(gray_im);
 ncenters_lvl = min(n_level_colors, size(ImMap_lvl,1));
@@ -92,11 +89,6 @@ ncenters_lvl = min(n_level_colors, size(ImMap_lvl,1));
 
 ImMap_lvl = centers_lvl;
 ImIx_lvl = nearcenter_lvl(ImIx_lvl+1);
-imwrite(ImIx_lvl,ImMap_lvl,"indexed_graymap.BMP");
-
-%% OJO: FALTA VER QUÉ PASA CON EL "TRANSPARENTE" DEL COLOR DE NIVEL
-% Y CUIDADO AL JUNTAR AMBAS LISTAS DE ÍNDICES Y COLORES EN ESAS ZONAS
-% NECESITARÁ UN IF PARA LOS CASOS DE TRANSPARENTE EN LVL_IMG (índice 0)?
 
 % --- COMBINATION OF LEVEL AND COLOR --- %
 ImMap = [ImMap;ImMap_lvl];
@@ -104,7 +96,7 @@ ImMap = [ImMap;ImMap_lvl];
 %ImIx_lvl
 level_mask = logical(combined_level_im);
 ImIx(level_mask) = ImIx_lvl(level_mask)+180;
-imwrite(ImIx,ImMap,"color_and_level.BMP");
+%%@TODO: do not use magic numbers
 
 % Transform ImMap into a 128 table
 tmp_ImMap = ImMap;
@@ -116,17 +108,6 @@ ImMap(64+2,:) = [1, 0, 1];
 display("setting alpha");
 alpha_mask = combined_alpha<0.1;
 ImIx(alpha_mask) = 64+1;
-
-%for i = [1:size(ImIx,1)]
-%  for j = [1:size(ImIx,2)]
-%    if combined_alpha(i,j) < 0.1
-%      ImIx(i,j) = 64+1;
-%    endif
-%  endfor
-%endfor
-
-imwrite(ImIx,ImMap,"final_noframe.BMP");
-
 
 % --- FRAMES --- %
 % 
@@ -172,18 +153,8 @@ frames_j = resolution_sprite+1:resolution_sprite+1:7*resolution_sprite+7;
 ImIx_f(:,frames_j)=64+2;
 ImIx_f(frames_i,:)=64+2;
 % --- SAVE IMAGE --- %
-%ImIx_f = ImIx_f -1;
+cd(originalFolder)
+cd(output_folder)
 imwrite(ImIx_f,ImMap,"resultado_final.BMP");%,"Alpha",combined_alpha)
-
 cd(originalFolder)
 rmpath(strcat(pwd,"/octave_functions"));
-
-% @TODO: remove
-return;
-imwrite(combined_level_im*255,"level.BMP");%,"Alpha",combined_alpha)
-imwrite(combined_im,"color.BMP","Alpha",combined_alpha*255);
-imwrite(gray_im,"level_saturation.BMP","Alpha",combined_level_im*255);
-cd(originalFolder)
-rmpath(strcat(pwd,"/octave_functions"));
-return
-% END TODO
