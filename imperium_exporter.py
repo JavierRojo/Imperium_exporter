@@ -304,29 +304,32 @@ class ImperiumRenderer(bpy.types.Operator):
         original_rot = target.rotation_euler.copy()
         angle_step = math.pi*0.25
         
-        count = 1
-        if not os.path.exists(scene.ImperiumProperties.result_path+"color/"):
-            os.mkdir(scene.ImperiumProperties.result_path+"color/")
-            
-            
-        for f in frames:
-            # Set next frame of the animation sequence
-            scene.frame_set(f)
-            for deg in range(8):
-                # One iteration for each direction (clockwise)
-                target.rotation_euler[2] = -(deg)*angle_step
+        
+        # Base color loop
+        if scene.ImperiumProperties.render_base:
+            count = 1
+            if not os.path.exists(scene.ImperiumProperties.result_path+"color/"):
+                os.mkdir(scene.ImperiumProperties.result_path+"color/")
+                
+                
+            for f in frames:
+                # Set next frame of the animation sequence
+                scene.frame_set(f)
+                for deg in range(8):
+                    # One iteration for each direction (clockwise)
+                    target.rotation_euler[2] = -(deg)*angle_step
 
-                # Filepath based on frame and direction so matrix can be assembled
-                scene.render.filepath = scene.ImperiumProperties.result_path + \
-                    "color/"+str(deg+1) + "_"+str(count)
-                try:
-                    bpy.ops.render.render(write_still=True, use_viewport=False)
-                except:
-                    self.report({'WARNING'}, "Could not render " +
-                                scene.render.filepath)
-                    pass
-            count += 1
-        target.rotation_euler = original_rot.copy()
+                    # Filepath based on frame and direction so matrix can be assembled
+                    scene.render.filepath = scene.ImperiumProperties.result_path + \
+                        "color/"+str(deg+1) + "_"+str(count)
+                    try:
+                        bpy.ops.render.render(write_still=True, use_viewport=False)
+                    except:
+                        self.report({'WARNING'}, "Could not render " +
+                                    scene.render.filepath)
+                        pass
+                count += 1
+            target.rotation_euler = original_rot.copy()
             
             
         # Level loop
@@ -377,9 +380,59 @@ class ImperiumRenderer(bpy.types.Operator):
                 e[0].material_slots.update()  
             bpy.ops.object.select_all(action='DESELECT')
             
+        """    
+        # Player loop
+        if scene.ImperiumProperties.render_player:
+            lvl_prefix = "ImpMat_player"   
+            holdout = create_holdout("ImpMat_holdout")
+            em = create_emissive("ImpMat_emission");
+            object_save_list = []
+            for o in bpy.data.objects:
+                if o.material_slots.values() == []:
+                    continue
+                else:                
+                    save_list = []
+                    for s in o.material_slots: 
+                        save_list.append(s.material.name)
+                        if s.material.name.startswith(lvl_prefix):
+                            s.material = em
+                        else:
+                            s.material = holdout
+                    object_save_list.append([o,save_list])            
+                o.material_slots.update()      
+
+            if not os.path.exists(scene.ImperiumProperties.result_path+"player/"):
+                os.mkdir(scene.ImperiumProperties.result_path+"player/")
+            count = 1
+            for f in frames:
+                # Set next frame of the animation sequence
+                scene.frame_set(f)
+                for deg in range(8):
+                    # One iteration for each direction (clockwise)
+                    target.rotation_euler[2] = -(deg)*angle_step
+
+                    # Filepath based on frame and direction so matrix can be assembled
+                    scene.render.filepath = scene.ImperiumProperties.result_path + \
+                        "player/"+ str(deg+1) + "_"+str(count)
+                    try:
+                        bpy.ops.render.render(write_still=True, use_viewport=False)
+                    except:
+                        self.report({'WARNING'}, "Could not render " +
+                                    scene.render.filepath)
+                        pass
+                count += 1
+            target.rotation_euler = original_rot.copy()            
+            for e in object_save_list:
+                slots = e[0].material_slots
+                for s,orig_name in zip(slots,e[1]):   
+                    s.material = bpy.data.materials[orig_name]           
+                e[0].material_slots.update()  
+            bpy.ops.object.select_all(action='DESELECT')
+        """    
             
             
-            
+        # shadow loop
+        # @TODO: make it work when saving in Octave    
         if scene.ImperiumProperties.render_shadow:            
             bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0, 0, 0))
             plane = bpy.data.objects[bpy.context.active_object.name]
@@ -513,6 +566,12 @@ class ImperiumProperties(bpy.types.PropertyGroup):
         default=True
     )
     # Decides whether to use current active camera or select one
+    render_base: bpy.props.BoolProperty(
+        name="Render base color",
+        description="Renders the base color of current model",
+        default=False
+    ) 
+    # Decides whether to use current active camera or select one
     render_shadow: bpy.props.BoolProperty(
         name="Render shadow texture",
         description="Renders the shadow texture of current model",
@@ -530,6 +589,12 @@ class ImperiumProperties(bpy.types.PropertyGroup):
         name="Render level mask",
         description="Renders the level mask of current model",
         default=False
+    )    
+    # Decides whether to use current active camera or select one
+    render_player: bpy.props.BoolProperty(
+        name="Render player mask",
+        description="Renders the player mask of current model",
+        default=False
     )
 
 # -----------------------------------------------------------------------------------------------------
@@ -545,7 +610,7 @@ class ImperiumPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        layout.label(text="Version: 1.0.0", icon='SCRIPT')
+        layout.label(text="Version: 1.7", icon='SCRIPT')
 
         # --- FRAME PROPERTIES --- #
         box = layout.box()
@@ -600,11 +665,13 @@ class ImperiumPanel(bpy.types.Panel):
         box = layout.box()
         box.label(text="Output parameters")
         box.prop(scene.ImperiumProperties, "result_path", text="")
+        box.prop(scene.ImperiumProperties, "render_base", text="Render base color")
         box.prop(scene.ImperiumProperties, "render_shadow", text="Render shadow")
         if scene.ImperiumProperties.render_shadow:
             box.prop(scene.ImperiumProperties, "main_light",icon='LIGHT_SUN')
             
         box.prop(scene.ImperiumProperties, "render_level", text="Render level mask")
+        box.prop(scene.ImperiumProperties, "render_player", text="Render player mask")
 
         # --- FINAL OPERATOR --- #
         row = layout.row()
