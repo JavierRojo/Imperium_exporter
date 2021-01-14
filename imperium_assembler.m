@@ -107,12 +107,13 @@ ncenters_lvl = min(n_level_colors, size(ImMap_lvl,1));
 
 ImMap_lvl = centers_lvl;
 ImIx_lvl = nearcenter_lvl(ImIx_lvl+1);
+ImMap_lvl = ((ImMap_lvl +1)*0.5); % @TODO: check
 % @TODO: do it right
 % --- COLOR SIMPLIFICATION PLAYER COLOR--- %
 display("simplifying colors of player color texture");
 hsv_player = rgb2hsv (player_saturation);
 % Colors in table (0-63) don't matter, only the index in the image
-sat = hsv_player(:,:,2);
+sat = (((hsv_player(:,:,2)+1)*0.5)+1)*0.5; % @TODO:check
 val = hsv_player(:,:,3);
 % 0.9999 prevents the saturation=1 case
 ImIx_ply = floor(val *0.99999 * 8)*8 + floor(sat*0.99999*8);
@@ -127,7 +128,7 @@ level_mask = logical(combined_level_im);
 player_mask = logical(combined_player_im);
 ImIx(level_mask) = ImIx_lvl(level_mask)+180;
 ImIx = ImIx+64+2;
-ImIx(player_mask) = ImIx_ply(player_mask); % from 0-63 to 1-64
+ImIx(player_mask) = ImIx_ply(player_mask);
 %%@TODO: do not use magic numbers
 
 % Transform ImMap into a 128 table
