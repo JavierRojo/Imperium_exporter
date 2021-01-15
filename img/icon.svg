@@ -10,7 +10,7 @@
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    inkscape:export-ydpi="65.024002"
    inkscape:export-xdpi="65.024002"
-   inkscape:export-filename="D:\JAVIER\CODIGO\IMPERIUM ADDON\repositorio\Imperium_exporter\img\icon_bw.png"
+   inkscape:export-filename="D:\JAVIER\CODIGO\IMPERIUM ADDON\repositorio\Imperium_exporter\img\icon_flat.png"
    width="100mm"
    height="100mm"
    viewBox="0 0 100 100"
@@ -199,7 +199,7 @@
      inkscape:groupmode="layer"
      id="layer1">
     <g
-       transform="translate(-46.113095)"
+       transform="translate(60.476191)"
        id="g978">
       <rect
          ry="17.872025"
@@ -272,6 +272,7 @@
          inkscape:transform-center-x="6.2615773e-06" />
     </g>
     <g
+       transform="translate(106.58929)"
        id="g966">
       <rect
          style="fill:url(#linearGradient937);fill-opacity:1;stroke:none;stroke-width:2.78893;stroke-linecap:round;stroke-linejoin:round"
@@ -304,6 +305,9 @@
          inkscape:transform-center-x="2.8386669" />
     </g>
     <g
+       inkscape:export-ydpi="65.024002"
+       inkscape:export-xdpi="65.024002"
+       transform="translate(106.23661)"
        id="g971">
       <rect
          ry="17.872025"
