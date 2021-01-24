@@ -20,11 +20,11 @@ Una herramienta para traducir modelos 3D desde [Blender](https://www.blender.org
 
 
 ## Road to 2.0
-* [ ] Arreglar apaños del color de nivel y jugador.
-* [ ] Limpiar el código de Python.
-* [ ] Documentar el add-on.
-* [ ] Separar el código de Octave en funciones.
-* [ ] Documentar el código de Octave.
+* [x] Arreglar apaños del color de nivel y jugador.
+* [x] Limpiar el código de Python.
+* [x] Documentar el add-on.
+* [x] Separar el código de Octave en funciones.
+* [x] Documentar el código de Octave.
 * [ ] Documentar el repositorio y traducir al castellano.
 * [ ] Vídeo demostración.
 * [ ] Vídeo promoción.
