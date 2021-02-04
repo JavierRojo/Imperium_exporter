@@ -6,7 +6,7 @@ bl_info = {
     "name": "Imperium Exporter",
     "description": "Un Add-on para renderizar texturas de Imperium",
     "author": "Javier Rojo Muñoz",
-    "version": (1, 7),
+    "version": (2, 0),
     "location": "PROPERTIES > RENDER > IMPERIUM RENDERER",
     "warning": "Sólo funciona con Eeeve. En desarrollo.",
     "wiki_url": "https://github.com/JavierRojo/Imperium_exporter",
@@ -481,7 +481,7 @@ class ImperiumPanel(bpy.types.Panel):
         scene = context.scene
 
         # Versión del add-on
-        layout.label(text="Version: 1.7", icon='SCRIPT')
+        layout.label(text="Version: 2.0", icon='SCRIPT')
 
         # --- FRAME PROPERTIES --- #
         box = layout.box()
