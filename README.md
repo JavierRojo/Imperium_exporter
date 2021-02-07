@@ -19,15 +19,15 @@ Una herramienta para traducir modelos 3D desde [Blender](https://www.blender.org
 2. La segunda parte de la herramienta utiliza [Octave](https://www.gnu.org/software/octave/) para combinar todas las texturas de manera rápida y eficiente, sacando como output un .BMP que se puede incorporar al sistema de texturas de Imperium.
 
 
-## Road to 2.0
+## Road to 2.0 (¡Completado!)
 * [x] Arreglar apaños del color de nivel y jugador.
 * [x] Limpiar el código de Python.
 * [x] Documentar el add-on.
 * [x] Separar el código de Octave en funciones.
 * [x] Documentar el código de Octave.
 * [x] Documentar el repositorio y traducir al castellano.
-* [ ] Vídeo demostración.
-* [ ] Vídeo promoción.
+* [x] Vídeo demostración.
+* [x] Vídeo promoción.
 
 ## Incluye
 * [x] Implementar colores normales.
@@ -69,6 +69,7 @@ Ahora el archivo `confiuration.cfg` debe rellenarse con algunos parámetros bás
 Una vez hecho esto, abrimos octave y simplemente ejecutamos el script `imperium_assembler.m`. Aunque se puede usar como comando en la terminal, para recién llegados recomiendo descargar el entorno gráfico (Octave-GUI). Selecciona el directoiro de trabajo en el menú desplegable y dale al botón del play o escribe _imperium\_assembler_ en la consola interna. En la carpeta de output se generará un nuevo archivo .BMP con las texturas juntas y los colores ordenados. Esta textura la puedes convertir ya directamente a .MMP para insertarla en el juego.
 
 ## Más información
+* [Teaser](https://www.youtube.com/watch?v=2atrwITkSvU).
+* [Tutorial](https://www.youtube.com/watch?v=19UGvqg00XI).
 * Actualizaré la [wiki](https://github.com/JavierRojo/Imperium_exporter/wiki) de este repositorio cuando la herramienta esté acabada.
-* El resultado parcial de esta herramienta puede verse [aquí](https://youtu.be/MGJLMHRm75E).
 * Más información en el [Blog de desarrollo](https://www.youtube.com/playlist?list=PL_zV6BZZ-V3c3P5ECvt4QKXoIlzdFlKu2).
